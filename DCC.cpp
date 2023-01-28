@@ -250,11 +250,41 @@ void DCC::setAccessory(int address, byte number, bool activate) {
 
   b[0] = address % 64 + 128;                                     // first byte is of the form 10AAAAAA, where AAAAAA represent 6 least signifcant bits of accessory address
   b[1] = ((((address / 64) % 8) << 4) + (number % 4 << 1) + activate % 2) ^ 0xF8; // second byte is of the form 1AAACDDD, where C should be 1, and the least significant D represent activate/deactivate
+  #ifdef DIAG_IO
+  DIAG(F("DCC-Bytes: %x %x)"), b[0], b[1]);
+  #endif
 
   DCCWaveform::mainTrack.schedulePacket(b, 2, 4);      // Repeat the packet four times
 #if defined(EXRAIL_ACTIVE)
   RMFT2::activateEvent(address<<2|number,activate);
 #endif
+}
+
+void DCC::programAccessory(int address, byte number, int cv, byte value) {
+  #ifdef DIAG_IO
+  DIAG(F("DCC::programAccessory(%d,%d,%d,%d)"), address, number, cv, value);
+  #endif
+  cv--;     // internally the cv addresses are starting with 0 and are going up to 1023
+  // use masks to detect wrong values and do nothing
+  if(address != (address & 0x01FF))
+    return;
+  if(number != (number & 0x03))
+    return;
+  if(cv != (cv & 0x03FF))
+    return;
+
+  byte b[5];
+
+  b[0] = address % 64 + 128;      // 10AAAAAA, where AAAAAA represent 6 least signifcant bits of accessory address
+  b[1] = ((((address / 64) % 8) << 4) + (number % 4 << 1)) ^ 0xF8; // 1AAA1NN0, AAA represent 3 most signifcant bits of accessory address and are inverted
+  b[2] = 0xEC + (cv >> 8);        // 111011VV, VV represents the 2 most significant bits of the CV address
+  b[3] = cv & 0xFF;               // VVVVVVVV, VVVVVVVV represtens the 8 least significant bits of the CV address
+  b[4] = value;                   // DDDDDDDD, value
+  #ifdef DIAG_IO
+  DIAG(F("DCC-Bytes: %x %x %x %x %x)"), b[0], b[1], b[2], b[3], b[4]);
+  #endif
+
+  DCCWaveform::mainTrack.schedulePacket(b, 5, 4);      // Repeat the packet four times
 }
 
 //

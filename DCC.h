@@ -109,6 +109,7 @@ public:
   static uint32_t getFunctionMap(int cab);
   static void updateGroupflags(byte &flags, int16_t functionNumber);
   static void setAccessory(int aAdd, byte aNum, bool activate);
+  static void programAccessory(int aAdd, byte aNum, int cv, byte bValue);
   static bool writeTextPacket(byte *b, int nBytes);
   static void setProgTrackSyncMain(bool on); // when true, prog track becomes driveable
   static void setProgTrackBoost(bool on);    // when true, special prog track current limit does not apply

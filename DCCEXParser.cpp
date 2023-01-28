@@ -79,6 +79,7 @@ const int16_t HASH_KEYWORD_A='A';
 const int16_t HASH_KEYWORD_C='C';
 const int16_t HASH_KEYWORD_R='R';
 const int16_t HASH_KEYWORD_T='T';
+const int16_t HASH_KEYWORD_W='W';
 const int16_t HASH_KEYWORD_LCN = 15137;
 const int16_t HASH_KEYWORD_HAL = 10853;
 const int16_t HASH_KEYWORD_SHOW = -21309;
@@ -293,33 +294,56 @@ void DCCEXParser::parseOne(Print *stream, byte *com, RingStream * ringStream)
         break;
 
     case 'a': // ACCESSORY <a ADDRESS SUBADDRESS ACTIVATE> or <a LINEARADDRESS ACTIVATE>
+              // ACCESSORY <aw ADDRESS SUBADDRESS CV VALUE> or <aw LINEARADDRESS CV VALUE>     
         { 
+          bool programming=p[0] == HASH_KEYWORD_W;
+          byte addressp=programming?1:0;
           int address;
           byte subaddress;
-          byte activep;
-          if (params==2) { // <a LINEARADDRESS ACTIVATE>
-              address=(p[0] - 1) / 4 + 1;
-              subaddress=(p[0] - 1)  % 4;
-              activep=1;        
+          byte datap;
+          if ((! programming && params==2) || (programming && params==4)) { 
+              // <a LINEARADDRESS ACTIVATE> or <aw LINEARADDRESS CV VALUE>
+              address=(p[addressp] - 1) / 4 + 1;
+              if (address == 0x0200) // linear addresses 2045 - 2048 will be mapped to address 0 subaddresses 0 - 3 (RCN-213)
+                address = 0;
+              subaddress=(p[addressp] - 1)  % 4;
+              datap=programming?2:1;        
           }
-          else if (params==3) { // <a ADDRESS SUBADDRESS ACTIVATE>
-              address=p[0];
-              subaddress=p[1];
-              activep=2;        
+          else if ((! programming && params==3) || (programming && params==5)) { 
+              // <a ADDRESS SUBADDRESS ACTIVATE> or <aw ADDRESS SUBADDRESS CV VALUE>
+              address=p[addressp];
+              subaddress=p[addressp+1];
+              datap=programming?3:2;        
           }
           else break; // invalid no of parameters
+          #ifdef DIAG_IO
+          DIAG(stream, F("Adresse %d %d\n"), address, subaddress);
+          #endif          
           
           if (
              ((address & 0x01FF) != address)      // invalid address (limit 9 bits ) 
           || ((subaddress & 0x03) != subaddress)  // invalid subaddress (limit 2 bits ) 
-          || ((p[activep]  & 0x01) != p[activep]) // invalid activate 0|1
           ) break; 
-          // Honour the configuration option (config.h) which allows the <a> command to be reversed
+
+          if (programming) {
+            int cv=p[datap];
+            int value=p[datap+1];
+            if (
+              (((cv - 1) & 0x03FF) != (cv - 1))    // invalid cv (limit 10 bits, 1 - 1024) 
+            || ((value & 0xFF) != value)            // invalid value (limit 8 bits) 
+            ) break; 
+            DCC::programAccessory(address, subaddress, cv, (byte) value);
+          }
+          else {
+            if ((p[datap]  & 0x01) != p[datap]) // invalid activate 0|1
+              break; 
+            // Honour the configuration option (config.h) which allows the <a> command to be reversed
 #ifdef DCC_ACCESSORY_COMMAND_REVERSE
-          DCC::setAccessory(address, subaddress,p[activep]==0);
+            DCC::setAccessory(address, subaddress,p[datap]==0);
 #else
-          DCC::setAccessory(address, subaddress,p[activep]==1);
+            DCC::setAccessory(address, subaddress,p[datap]==1);
 #endif
+          }
         }
         return;
      
