@@ -627,14 +627,17 @@ void DCCEXParser::parseOne(Print *stream, byte *com, RingStream * ringStream)
                 else { // <JT id>
                     Turnout * t=Turnout::get(id);
                     if (!t || t->isHidden()) StringFormatter::send(stream, F(" %d X"),id);
-                    else  StringFormatter::send(stream, F(" %d %c \"%S\""),
-                            id,t->isThrown()?'T':'C', 
+                    else {
+		      const FSH *tdesc = NULL;
 #ifdef EXRAIL_ACTIVE
-                            RMFT2::getTurnoutDescription(id)
-#else
-                            F("") 
-#endif  
-                        );      
+		      tdesc = RMFT2::getTurnoutDescription(id);
+#endif
+		      if (tdesc == NULL)
+			tdesc = F("");
+		      StringFormatter::send(stream, F(" %d %c \"%S\""),
+					    id,t->isThrown()?'T':'C',
+					    tdesc);
+		    }
                 }
                 StringFormatter::send(stream, F(">\n"));
                 return;
