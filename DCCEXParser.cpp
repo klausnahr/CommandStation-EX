@@ -294,16 +294,19 @@ void DCCEXParser::parseOne(Print *stream, byte *com, RingStream * ringStream)
             return;
         break;
 
-    case 'a': // ACCESSORY <a ADDRESS SUBADDRESS ACTIVATE> or <a LINEARADDRESS ACTIVATE>
+    case 'a': // ACCESSORY <a ADDRESS SUBADDRESS ACTIVATE> or <a LINEARADDRESS ACTIVATE> for Main Track
               // ACCESSORY <aw ADDRESS SUBADDRESS CV VALUE> or <aw LINEARADDRESS CV VALUE>     
+    case 'A': // ACCESSORY <A ADDRESS SUBADDRESS ACTIVATE> or <A LINEARADDRESS ACTIVATE> for Programming Track
         { 
           bool programming=p[0] == HASH_KEYWORD_W;
           byte addressp=programming?1:0;
           int address;
           byte subaddress;
           byte datap;
+          if (opcode=='A' && programming) // Programming on Programming Track is done with command W
+            break;
           if ((! programming && params==2) || (programming && params==4)) { 
-              // <a LINEARADDRESS ACTIVATE> or <aw LINEARADDRESS CV VALUE>
+              // <a LINEARADDRESS ACTIVATE>, <A LINEARADDRESS ACTIVATE> or <aw LINEARADDRESS CV VALUE>
               address=(p[addressp] - 1) / 4 + 1;
               if (address == 0x0200) // linear addresses 2045 - 2048 will be mapped to address 0 subaddresses 0 - 3 (RCN-213)
                 address = 0;
@@ -311,7 +314,7 @@ void DCCEXParser::parseOne(Print *stream, byte *com, RingStream * ringStream)
               datap=programming?2:1;        
           }
           else if ((! programming && params==3) || (programming && params==5)) { 
-              // <a ADDRESS SUBADDRESS ACTIVATE> or <aw ADDRESS SUBADDRESS CV VALUE>
+              // <a ADDRESS SUBADDRESS ACTIVATE>, <A ADDRESS SUBADDRESS ACTIVATE> or <aw ADDRESS SUBADDRESS CV VALUE>
               address=p[addressp];
               subaddress=p[addressp+1];
               datap=programming?3:2;        
@@ -340,9 +343,9 @@ void DCCEXParser::parseOne(Print *stream, byte *com, RingStream * ringStream)
               break; 
             // Honour the configuration option (config.h) which allows the <a> command to be reversed
 #ifdef DCC_ACCESSORY_COMMAND_REVERSE
-            DCC::setAccessory(address, subaddress,p[datap]==0);
+            DCC::setAccessory(address, subaddress, p[datap]==0, opcode=='A');
 #else
-            DCC::setAccessory(address, subaddress,p[datap]==1);
+            DCC::setAccessory(address, subaddress, p[datap]==1, opcode=='A');
 #endif
           }
         }

@@ -238,7 +238,7 @@ uint32_t DCC::getFunctionMap(int cab) {
   return (reg<0)?0:speedTable[reg].functions;
 }
 
-void DCC::setAccessory(int address, byte number, bool activate) {
+void DCC::setAccessory(int address, byte number, bool activate, bool programmingtrack) {
   #ifdef DIAG_IO
   DIAG(F("DCC::setAccessory(%d,%d,%d)"), address, number, activate);
   #endif
@@ -255,7 +255,10 @@ void DCC::setAccessory(int address, byte number, bool activate) {
   DIAG(F("DCC-Bytes: %x %x)"), b[0], b[1]);
   #endif
 
-  DCCWaveform::mainTrack.schedulePacket(b, 2, 4);      // Repeat the packet four times
+  if (programmingtrack)
+    DCCWaveform::progTrack.schedulePacket(b, 2, 4);      // Repeat the packet four times
+  else
+    DCCWaveform::mainTrack.schedulePacket(b, 2, 4);      // Repeat the packet four times
 #if defined(EXRAIL_ACTIVE)
   RMFT2::activateEvent(address<<2|number,activate);
 #endif
